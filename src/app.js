@@ -18,10 +18,11 @@ i18next
     fallbackLng: 'en', 
     preload: ['en', 'fr'], 
     resources: {
-      en: { translation: { welcome: 'Welcome to Nuru!' } },
-      fr: { translation: { welcome: 'Bienvenue à Nuru!' } },
+      en: { translation: { welcome: "Hey I'm Nuru😄, your AI travel buddy. How can I help?" } },
+      fr: { translation: { welcome: "Salut, je suis Nuru😄, ton compagnon de voyage intelligent. Comment puis-je t'aider ?" } },
     },
   });
+
 
 const app = express();
 app.use(express.json());
@@ -116,8 +117,12 @@ const handleQuery = async (message, chatId) => {
       return "I didn't understand your query. Could you be more specific?";
     }
 
+    // Format each keyword with wildcards for a LIKE search
+    const formattedKeywords = keywords.map(keyword => `%${keyword}%`);
+    console.log(`[INFO] Extracted and formatted keywords: ${formattedKeywords}`);
+
     // 1. Try to search in the database first
-    const dbResults = await searchDestinationInDB(keywords);
+    const dbResults = await searchDestinationInDB(formattedKeywords);
 
     if (dbResults && dbResults.length > 0) {
       let responseText = `Here are some results for your search:\n\n`;

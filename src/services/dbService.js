@@ -14,7 +14,7 @@ const pool = new Pool({
 });
 
 // Define a list of common stop words to ignore during keyword extraction
-const stopWords = ['and', 'or', 'the', 'is', 'in', 'at', 'a', 'an', 'of', 'for', 'on', 'with', 'to', 'find', 'me'];
+const stopWords = ['and', 'or', 'the', 'is', 'in', 'at', 'a', 'an', 'of', 'for', 'on', 'with', 'to', 'find', 'me', 'near', 'by', 'from'];
 
 // Function to extract meaningful keywords and format them as %keyword%
 function extractFormattedKeywords(query) {
@@ -37,26 +37,30 @@ function extractFormattedKeywords(query) {
   return formattedKeywords; // Return the formatted keywords as an array
 }
 
+
+
 // Function to search destinations in the database using extracted keywords
 const searchDestinationInDB = async (keywords) => {
   try {
-    // Construct the query for multiple keyword conditions using `OR` for separate searches
+    // Construct the query for both full-text search and trigram similarity
     const query = `
-      SELECT places.name, places.description, places.contact_number, places.rating, places.image_url
-      FROM places
-      JOIN subcategories ON places.subcategory_id = subcategories.id
-      JOIN categories ON subcategories.category_id = categories.id
-      JOIN locations ON categories.location_id = locations.id
-      WHERE
-      ${keywords.map((_, idx) => `(places.name ILIKE $${idx + 1} OR
-                                   places.description ILIKE $${idx + 1} OR
-                                   locations.name ILIKE $${idx + 1})`).join(' OR ')};
+      SELECT places.name, places.description, places.contact_number, places.rating, places.image_url,
+      ts_rank_cd(places.search_vector, query) AS rank
+      FROM places, to_tsquery('english', $1) query
+      WHERE places.search_vector @@ query  -- Full-text search match
+      OR places.name ILIKE ANY($2)         -- Trigram fuzzy matching for name
+      OR places.description ILIKE ANY($2)  -- Trigram fuzzy matching for description
+      ORDER BY rank DESC, similarity(places.name, $3) DESC  -- Order by relevance and fuzzy match
+      LIMIT 10;  -- Limit the number of results for efficiency
     `;
 
-    console.log(`[INFO] Executing query: "${query}" with keywords: ${keywords}`);
-    
-    // Execute the query with the formatted keywords as parameters
-    const { rows } = await pool.query(query, keywords);
+    const formattedKeywords = keywords.map(word => `%${word}%`);
+    const queryString = keywords.join(' & ');  // Full-text search format
+
+    console.log(`[INFO] Executing query: "${query}" with full-text search query: "${queryString}" and keywords: ${formattedKeywords}`);
+
+    // Execute the query with the formatted keywords
+    const { rows } = await pool.query(query, [queryString, formattedKeywords, keywords.join(' ')]);
 
     if (rows.length > 0) {
       console.log(`[INFO] Query returned ${rows.length} results`);
@@ -71,5 +75,22 @@ const searchDestinationInDB = async (keywords) => {
   }
 };
 
+// Enhanced fallback to Google search if no results found in the database
+const fetchGoogleResult = async (query) => {
+  try {
+    // Add more context to the Google search query
+    const searchQuery = `${query} travel destination`;
+    console.log(`[INFO] Fallback to Google search with query: "${searchQuery}"`);
+
+    // Call the Google search function (this function needs to be implemented separately)
+    const googleResult = await googleSearch(searchQuery);
+    
+    return googleResult;
+  } catch (error) {
+    console.error(`[ERROR] Failed to fetch Google result: ${error.message}`);
+    return "Sorry, I couldn't find any results for your search. Please try again with different keywords.";
+  }
+};
+
 // Export the search function for use in other modules
-module.exports = { searchDestinationInDB };
+module.exports = { searchDestinationInDB, fetchGoogleResult };
