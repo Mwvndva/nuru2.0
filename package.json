@@ -11,9 +11,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@adiwajshing/baileys": "^5.0.0",
+    "@adiwajshing/baileys": "^3.5.3",
+    "@google-cloud/translate": "^8.5.1",
     "@whiskeysockets/baileys": "^6.7.16",
-    "axios": "^1.8.1",
+    "axios": "^1.8.3",
     "baileys": "^6.7.16",
     "cohere-ai": "^7.16.0",
     "cors": "^2.8.5",
@@ -22,7 +23,7 @@
     "googleapis": "^146.0.0",
     "i18next": "^24.2.2",
     "i18next-http-middleware": "^3.7.1",
-    "pg": "^8.13.3",
+    "pg": "^8.14.0",
     "qrcode-terminal": "^0.12.0"
   }
 }
